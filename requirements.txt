@@ -1,0 +1,8 @@
+aiogram==2.25.1
+nltk==3.8.1
+num2t4ru==2.0.0
+omegaconf==2.3.0
+pydub==0.25.1
+torch==2.1.2
+torchaudio==2.1.2
+transliterate==1.10.2

@@ -4,7 +4,7 @@ import sqlite3
 conn = sqlite3.connect('user_preferences.db')
 cursor = conn.cursor()
 
-def start():
+async def start():
     # Создаем таблицу, если её нет
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_preferences (
@@ -15,7 +15,7 @@ def start():
     conn.commit()
 
 #Смена предпочитаемого голоса
-def changeUserPreferenceVoice(user_id, voice):
+async def changeUserPreferenceVoice(user_id, voice):
     cursor.execute('''
         UPDATE user_preferences
         SET speaker = ?
@@ -24,7 +24,7 @@ def changeUserPreferenceVoice(user_id, voice):
     conn.commit()
 
 #Получение предпочитаемого голоса
-def getUserPreferenceVoice(user_id):
+async def getUserPreferenceVoice(user_id):
     cursor.execute('SELECT * FROM user_preferences WHERE user_id = ?', (user_id,))
     user_record = cursor.fetchone()
     

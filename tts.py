@@ -1,17 +1,18 @@
-import torch, torchaudio, os, re, wave
+import torch, torchaudio, os, re, wave, timeit
 from pydub import AudioSegment
 from nltk.tokenize import sent_tokenize
 from transliterate import translit
 from datetime import datetime, timedelta
 from num2t4ru import num2text
 from omegaconf import OmegaConf
+from config import torch_num_threads
 
 language = 'ru'
 model_id = 'ru_v3'
 sample_rate = 48000 # 48000
 put_accent = True
 put_yo = True
-device = torch.device('cpu') # cpu или gpu
+device = torch.device('cpu') # cpu или cuda
 
 line_length_limits: dict = {
     'aidar': 870,
@@ -27,11 +28,52 @@ wave_channels: int = 1  # Mono
 wave_header_size: int = 44  # Bytes
 wave_sample_width: int = int(16 / 8)  # 16 bits == 2 bytes
 
-model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
-                          model='silero_tts',
-                          language=language,
-                          speaker=model_id)
-model.to(device)
+
+def init_model(device: str, threads_count: int) -> torch.nn.Module:
+    print("Initialising model")
+    t0 = timeit.default_timer()
+
+    # https://github.com/snakers4/silero-models/issues/183
+    torch._C._jit_set_profiling_mode(False) # Fixes initial delay
+
+    if not torch.cuda.is_available() and device == "auto":
+        device = 'cpu'
+    if torch.cuda.is_available() and device == "auto" or device == "cuda":
+        # torch.backends.cudnn.deterministic = True
+        torch_dev: torch.device = torch.device("cuda", 0)
+        gpus_count = torch.cuda.device_count()  # 1
+        print("Using {} GPU(s)...".format(gpus_count))
+    else:
+        torch_dev: torch.device = torch.device(device)
+    torch.set_num_threads(threads_count)
+    tts_model, tts_sample_text = torch.hub.load(repo_or_dir='snakers4/silero-models',
+                                                model='silero_tts',
+                                                language=language,
+                                                speaker=model_id)
+    print("Setup takes {:.2f}".format(timeit.default_timer() - t0))
+
+    print("Загружаем модель")
+    t1 = timeit.default_timer()
+    tts_model.to(torch_dev)  # gpu or cpu
+    print("Model to device takes {:.2f}".format(timeit.default_timer() - t1))
+
+    if torch.cuda.is_available() and device == "auto" or device == "cuda":
+        print("Synchronizing CUDA")
+        t2 = timeit.default_timer()
+        torch.cuda.synchronize()
+        print("Cuda Synch takes {:.2f}".format(timeit.default_timer() - t2))
+    print("Модель загружена")
+    return tts_model
+
+torch.hub.download_url_to_file('https://raw.githubusercontent.com/snakers4/silero-models/master/models.yml',
+                                   'latest_silero_models.yml',
+                                   progress=False)
+tts_model: torch.nn.Module = init_model(device, torch_num_threads)
+#model, _ = torch.hub.load(repo_or_dir='snakers4/silero-models',
+#                         model='silero_tts',
+#                          language=language,
+#                          speaker=model_id)
+#model.to(device)
 
 # Функция для разбиения текста на чанки
 async def chunk_text(text, max_chars=500):
@@ -183,7 +225,7 @@ async def va_speak(what: str, file: str, voice: str):
     wf = await init_wave_file(file, wave_channels, wave_sample_width, sample_rate)
     for line in preprocessed_lines:
         try:
-            audio = model.apply_tts(line,
+            audio = tts_model.apply_tts(line,
                                         speaker=voice,
                                         sample_rate=sample_rate,
                                         put_accent=put_accent,
@@ -192,6 +234,6 @@ async def va_speak(what: str, file: str, voice: str):
             wf, audio_size, wave_file_number = await write_wave_chunk(wf, audio, audio_size, file,
                                                                 wave_file_size_limit, wave_file_number)
         except ValueError:
-            print("TTS failed!")
+            print("Произошла ошибка в обработке голоса, продолжаем обработку файла")
 
         current_line += 1

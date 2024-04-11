@@ -53,15 +53,17 @@ async def handle_txt_file(message: types.Message):
         file_info = await bot.get_file(file_id)
         file_path = file_info.file_path
         file_url = f'https://api.telegram.org/file/bot{config.API_TOKEN}/{file_path}'
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
         with requests.get(file_url, stream=True) as r:
             r.raise_for_status()
             with open(file_path, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
         with open(file_path, 'r', encoding='utf-8') as file:
-            txt_content_str = file.read().decode('utf-8')
+            txt_content_str = file.read()
         end_time = time.time()
-        print(f"Файл {message.message_id} размером {os.path.getsize(pdf)/1024/1024}Мб скачался за: {end_time - start_time:.2f} с.")
+        print(f"Файл {message.message_id} размером {round(os.path.getsize(file_path)/1024/1024, 2)}Мб скачался за: {end_time - start_time:.2f} с.")
 
         voice = await getUserPreferenceVoice(message.chat.id)
         wav = str(message.chat.id) + str(message.message_id) + ".wav"
@@ -91,7 +93,7 @@ async def handle_txt_file(message: types.Message):
                     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
                     await message.reply(f"Ваш файл больше 50 МБ. Ссылка на облако: {file_url}") 
         end_time = time.time()
-        print(f"Файл {mp3} размером {os.path.getsize(mp3)/1024/1024}Мб отправлен за: {end_time - start_time:.2f} с.")
+        print(f"Файл {mp3} размером {round(os.path.getsize(mp3)/1024/1024, 2)}Мб отправлен за: {end_time - start_time:.2f} с.")
 
         os.remove(mp3)
         os.remove(wav)
@@ -105,6 +107,8 @@ async def handle_txt_file(message: types.Message):
         file_id = message.document.file_id
         file_info = await bot.get_file(file_id)
         file_path = file_info.file_path
+        if not os.path.exists(os.path.dirname(file_path)):
+            os.makedirs(os.path.dirname(file_path))
         file_url = f'https://api.telegram.org/file/bot{config.API_TOKEN}/{file_path}'
         with requests.get(file_url, stream=True) as r:
             r.raise_for_status()
@@ -119,7 +123,7 @@ async def handle_txt_file(message: types.Message):
                 page = pdf_reader.pages[page_num]
                 text += page.extract_text()
         end_time = time.time()
-        print(f"Файл {message.message_id} размером {os.path.getsize(pdf)/1024/1024}Мб скачался за: {end_time - start_time:.2f} с.")
+        print(f"Файл {message.message_id} размером {round(os.path.getsize(pdf)/1024/1024, 2)}Мб скачался за: {end_time - start_time:.2f} с.")
 
         voice = await getUserPreferenceVoice(message.chat.id)
         wav = str(message.chat.id) + str(message.message_id) + ".wav"
@@ -149,7 +153,7 @@ async def handle_txt_file(message: types.Message):
                     await bot.send_chat_action(message.chat.id, ChatActions.TYPING)
                     await message.reply(f"Ваш файл больше 50 МБ. Ссылка на облако: {file_url}")   
         end_time = time.time()
-        print(f"Файл {mp3} размером {os.path.getsize(mp3)/1024/1024}Мб отправлен за: {end_time - start_time:.2f} с.")
+        print(f"Файл {mp3} размером {round(os.path.getsize(mp3)/1024/1024, 2)}Мб отправлен за: {end_time - start_time:.2f} с.")
 
         os.remove(pdf)
         os.remove(mp3)
@@ -177,7 +181,7 @@ async def echo(message: types.Message):
             await message.reply_audio(audio=audio_file, caption="Вот ваш аудиофайл:")
 
         end_time = time.time()
-        print(f"Файл размером {os.path.getsize(mp3)/1024/1024}Мб отправлен {message.from_user.id} за: {end_time - start_time:.2f} с.")
+        print(f"Файл размером {round(os.path.getsize(mp3)/1024/1024, 2)}Мб отправлен {message.from_user.id} за: {end_time - start_time:.2f} с.")
 
         os.remove(mp3)
         os.remove(wav)

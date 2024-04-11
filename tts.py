@@ -3,7 +3,7 @@ from pydub import AudioSegment
 from nltk.tokenize import sent_tokenize
 from transliterate import translit
 from datetime import datetime, timedelta
-from num2t4ru import num2text
+from num2words import num2words
 from omegaconf import OmegaConf
 from config import torch_num_threads
 
@@ -124,7 +124,7 @@ async def spell_digits(line) -> str:
     # Sort digits from largest to smallest - else "1 11" will be "один один один" but not "один одиннадцать"
     digits = sorted(digits, key=len, reverse=True)
     for digit in digits:
-        line = line.replace(digit, num2text(int(digit[:12])))
+        line = line.replace(digit, num2words(int(digit[:12]), lang='ru'))
     return line
 
 
